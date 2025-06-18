@@ -12,6 +12,7 @@ import time
 import threading
 import queue
 from google import genai
+import asyncio
 
 # Carga variables de entorno desde .env
 load_dotenv()
@@ -20,121 +21,87 @@ GENAI_API_KEY = os.getenv("GENAI_API_KEY")
 # =============================
 # PROMPT PARA GEMINI
 # =============================
-PROMT = """
-Eres un generador experto de ejercicios de análisis de código en Python, dirigidos a estudiantes universitarios. Tu objetivo es crear preguntas de opción múltiple que exploren en profundidad el razonamiento lógico, la comprensión estructural y la ejecución paso a paso de programas reales. Cada pregunta debe contener:
+PROMPT = """
+# Rol del sistema:
+Actuás como un generador experto de ejercicios de análisis de código en Python. Tenés una sólida formación en pedagogía, didáctica computacional y programación avanzada. Tu objetivo es generar preguntas tipo test (múltiple opción) para estudiantes universitarios de nivel intermedio. Cada pregunta debe fomentar el pensamiento lógico, la comprensión profunda de la ejecución del código y la interpretación de resultados no triviales.
 
-- Un enunciado claro, directo y técnico.
+# Objetivo:
+Diseñar una pregunta de opción múltiple de análisis de código en Python, basada en un fragmento autocontenido de código desafiante, cumpliendo estrictos criterios de calidad, ejecución y formato.
 
-- Un bloque de código Python autocontenible, complejo, extenso y bien formateado.
+# Estructura de generación (paso a paso):
+1. **Generá un bloque de código Python autocontenido** que cumpla con los criterios detallados en la sección "Criterios del código". El código debe ser diferente a los generados anteriormente y evitar patrones repetitivos.
+2. **Limitá el código a un máximo de 18 líneas ejecutables** (sin contar líneas en blanco ni comentarios), para evitar preguntas demasiado extensas y reducir el tamaño de la cookie de errores.
+3. **Simulá mentalmente su ejecución** (o ejecutalo internamente) y determiná con exactitud su salida o el valor final de una variable clave.
+4. **Redactá una pregunta clara**, basada en ese código, sin adornos ni ambigüedades. El enunciado debe estar contextualizado para análisis de código.
+5. **Generá 4 opciones plausibles**, una de ellas correcta. Las incorrectas deben ser verosímiles.
+6. **Verificá que la respuesta correcta coincida EXACTAMENTE con una de las opciones.**
+7. **Escribí una explicación concisa y precisa**, enfocada en la lógica del código y la razón por la que la opción correcta es válida.
+8. **Devolvé solo un objeto JSON válido**, con los campos especificados. No agregues texto adicional ni comentarios.
 
-- Cuatro opciones de respuesta.
+# Reglas estrictas de generación (no ignorar):
+1. Antes de generar las opciones, SIMULÁ paso a paso la ejecución del código. Para cada línea, analizá el flujo, valores intermedios y salida.
+2. La opción correcta DEBE COINCIDIR EXACTAMENTE con la salida real del código. Si no podés verificar esto mentalmente, no generes la pregunta.
+3. No generes explicaciones que contradigan las opciones. Toda explicación debe confirmar directamente el valor de la respuesta correcta.
+4. Si hay discrepancia entre el resultado del código y las opciones, REINICIÁ el proceso desde el punto 1. No te autocorrijas al final.
 
-- Una única respuesta correcta.
+# Criterios del código:
+- Sintaxis Python válida, compatible con versiones recientes.
+- Nombres de variables y funciones en español, con estilo *camelCase*.
+- Código indentado con 4 espacios (sin tabulaciones).
+- Sin uso de librerías externas.
+- Mínimo 8 líneas de código ejecutable y máximo 20 líneas ejecutables (sin contar comentarios ni líneas en blanco).
+- Mínimo dos funciones definidas por el usuario, con parámetros y retorno.
+- Al menos cinco bloques lógicos diferenciados (control de flujo, funciones, manipulación de estructuras de datos, etc.).
+- Al menos una estructura de datos (lista, tupla, conjunto o diccionario) manipulada activamente.
+- Uso de condicionales, bucles, llamadas a funciones encadenadas, y estructuras de control anidadas.
+- Opcional: uso de `input()` con validación.
+- Estilo de interpretación variable: análisis de salida o ejecución con datos específicos.
+- Evitá repetir estructuras, patrones o lógicas de ejercicios típicos. Cada pregunta debe ser única y desafiante.
 
-- Una explicación breve basada en la lógica interna del programa.
+# Validación y control de calidad:
+- Simulá el código paso a paso.
+- Comprobá 3 veces que la salida y la opción correcta coinciden.
+- Asegurate de que no existan ambigüedades, errores o trivialidades.
+- Comprueba que los signos de comparación (==, !=, <, >) se usen correctamente en el contexto del código.
+- Verificá que los valores de `input()` se encuentren en el enunciado de la pregunta.
+- Asegura que todas las operaciones matemáticas y lógicas se realicen correctamente, considerando el tipo de datos (enteros, flotantes, cadenas).
 
-OBJETIVO
-- No generes ejercicios triviales. Cada pregunta debe ser una situación que obligue al estudiante a leer, analizar y simular la ejecución del código paso por paso, combinando múltiples conceptos en simultáneo.
-
-REQUISITOS GENERALES DE CÓDIGO
-Lenguaje y estilo:
-
-- Python válido, sintaxis de la última versión estable.
-
-- Nombres de variables y funciones en español, usando notación camelCase.
-
-- Usar 4 espacios por nivel de indentación (no tabs).
-
-- El código debe ser autocontenible, sin librerías externas.
-
-- Estructura obligatoria del código:
-
-- Mínimo 5 bloques lógicos distintos (ej. definiciones, condicionales, bucles, estructuras de datos, etc.).
-
-- Usar al menos dos funciones definidas por el usuario.
-
-- Incorporar estructuras de control de flujo anidadas.
-
-- Incluir al menos una estructura de datos (lista, tupla, diccionario o set) y manipularla en el código.
-
-- Incluir, cuando sea relevante, llamadas recursivas o interacción entre funciones.
-
-- Usar casos reales de acumulación, filtrado, ordenamiento o validación de datos.
-
-- Cuando se incluya input(), deben procesarse y transformarse los datos de entrada (por ejemplo: convertir a enteros, separar cadenas, recorrerlos).
-
-- Siempre que sea posible, combinar lógica condicional + iterativa + funciones + estructuras de datos en un mismo bloque.
-
-- Temas a integrar y combinar en una misma pregunta:
-
-- Estructuras condicionales: if, elif, else
-
-- Estructuras repetitivas: for, while, incluyendo control de iteración (ej. break, continue)
-
-- Funciones: def, con múltiples argumentos y retorno de valores
-
-- Listas, tuplas, diccionarios y sets, incluyendo acceso, modificación y recorrido
-
-- Recursividad, si se justifica
-
-- Operaciones con strings y procesamiento de texto (cuando sea útil)
-
-- Anidamiento de estructuras y efectos colaterales entre funciones
-
-- Mínimo 8 líneas de código funcional, sin contar espacios ni declaraciones triviales
-
-VARIEDAD Y ESTILO DE PREGUNTAS
-- Selecciona aleatoriamente uno de los siguientes tipos:
-
-- "¿Qué salida tendrá el siguiente código?"
-
-- "¿Qué salida tendrá el siguiente código si se ingresan los siguientes valores?"
-(si elegís esta opción, el enunciado debe indicar claramente los valores a ingresar, y el código debe usar input() adecuadamente)
-(asegúrate de que los valores de input() sean únicos (valores enteros, flotantes o cadenas), puedes basarte en fechas importantes)
-
-- "¿Qué valor tendrá la variable X al finalizar la ejecución del siguiente código?"
-
-RESTRICCIONES Y CONTROL DE CALIDAD
-- Evitá repeticiones de código o lógica entre preguntas.
-
-- No generes preguntas genéricas, predecibles ni de resolución inmediata.
-
-- Cuando generes preguntas que incluyan input(), debés:
-
-    - Usar valores de entrada distintos en cada pregunta generada, evitando repeticiones de combinaciones numéricas o de texto.
-
-    - Asegurarte de que los valores de entrada sean variados, no triviales ni predecibles, e idealmente elegidos aleatoriamente dentro de un rango significativo (por ejemplo: entre 0 y 100, o usar listas de nombres, strings, etc.).
-
-    - No reutilices combinaciones previas como [5, 1, 3] o [7, 2, 1]. Las entradas deben ser significativamente diferentes entre preguntas.
-
-    - Si se ingresan múltiples valores, deben tener propósitos distintos dentro del código (por ejemplo: índice, cantidad, valor a comparar), y deben afectar el resultado de forma no lineal.
-
-    - Evitá que la entrada sea solo una excusa para ejecutar un print. Debe tener un impacto lógico real en la ejecución.
-
-- El código debe ser desafiante pero comprensible, idealmente similar al que se encontraría en una evaluación universitaria real.
-
-- Antes de determinar la respuesta correcta, simulá mentalmente el código paso por paso. No asumas.
-
-- La respuesta correcta debe coincidir exactamente con una de las opciones.
-
-- No incluyas comentarios, explicaciones, bloques Markdown ni texto adicional fuera del JSON.
-
-Formato de salida (único objeto JSON):
+# Formato de salida (obligatorio):
+Devuelve únicamente un objeto JSON con esta estructura exacta:
 
 {
-  "Pregunta": "Texto de la pregunta clara y concisa.",
-  "Codigo": "Fragmento de código Python válido, autocontenible y bien formateado.",
-  "Respuestas": ["Respuesta A", "Respuesta B", "Respuesta C", "Respuesta D"],
-  "Respuesta correcta": "Respuesta correcta exactamente igual a una de las opciones",
-  "Explicacion": "Explicación breve y general del razonamiento que lleva al resultado correcto, sin hacer referencia a letras o posiciones de respuesta."
+  "Pregunta": "Texto claro, sin adornos. Enunciado técnico enfocado en la ejecución del código.",
+  "Codigo": "Bloque de código Python autocontenido, bien indentado, formateado y funcional.",
+  "Respuestas": ["Opción A", "Opción B", "Opción C", "Opción D"],
+  "Respuesta correcta": "Debe coincidir exactamente con una de las opciones anteriores.",
+  "Explicacion": "Explicación centrada en la ejecución paso a paso y en la lógica del código."
 }
 
-IMPORTANTE:
-- No incluyas absolutamente ningún texto fuera del objeto JSON.
+# Criterios de calidad y ejecución:
+- Pregunta clara, sin ambigüedades ni adornos.
+- Código autocontenido, ejecutable y con salida única.
+- Opciones plausibles, una correcta y tres incorrectas pero verosímiles.
+- Explicación precisa, enfocada en la lógica del código y la respuesta correcta.
+- Asegura la correcta coincidencia entre la respuesta correcta y las opciones generadas.
+- Los signos de comparación (==, !=, <, >) deben ser usados correctamente en el contexto del código.
+- Verifica el verdadero peso de cada numero al comparar valores enteros y flotantes.
+- Asegurate de seguir la estructura de generación paso a paso especificada. (obligatorio)
 
-- No uses etiquetas, explicaciones, ni bloques Markdown.
+# Restricciones finales:
+- Solo la salida JSON. No incluyas ningún texto adicional.
+- Evitá preguntas redundantes, triviales o con valores repetidos.
+- Fomentá variedad estructural en los códigos.
+- Validación rigurosa antes de emitir la respuesta.
+- El código generado no debe superar las 18 líneas ejecutables.
+- Asegurate que los valores de los inputs() se encuentren en el enunciado de la pregunta.
+- No generes la pregunta sin usar la simulación de ejecución del código.
 
-- El resultado debe ser solo el objeto JSON bien formado.
+# Prohibido:
+- Generar salidas sin verificarlas.
+- Producir preguntas con explicaciones que corrigen opciones incorrectas.
+- Variar el formato. Solo el JSON especificado.
+- Generar preguntas que no puedan ser verificadas por el modelo.
+- Generar preguntas que no cumplan con los criterios de calidad y ejecución especificados.
 """
 
 # =============================
@@ -177,8 +144,8 @@ def generar_pregunta():
     Limpia el texto y lo convierte a un diccionario Python.
     """
     response = client.models.generate_content(
-        model="gemini-2.0-flash", 
-        contents=PROMT
+        model="gemini-2.0-flash-lite", 
+        contents=PROMPT
     )
     try:
         text = response.text.strip()
@@ -237,13 +204,14 @@ def precargar_preguntas():
 # Inicia el hilo de precarga al arrancar la app
 threading.Thread(target=precargar_preguntas, daemon=True).start()
 
-def obtener_pregunta_cache():
+async def obtener_pregunta_cache_async():
     """
-    Obtiene una pregunta del cache (espera hasta 10s).
+    Obtiene una pregunta del cache de forma no bloqueante para el event loop.
     Si el cache está vacío, genera una pregunta en caliente.
     """
+    loop = asyncio.get_running_loop()
     try:
-        pregunta = pregunta_cache.get(timeout=10)
+        pregunta = await loop.run_in_executor(None, lambda: pregunta_cache.get(timeout=10))
         if not es_pregunta_valida(pregunta):
             return generar_pregunta()
         return pregunta
@@ -296,6 +264,7 @@ def clear_session(response: Response):
     Elimina la cookie de sesión.
     """
     response.delete_cookie(SESSION_COOKIE)
+    response.delete_cookie("quiz_errores")
 
 def set_errores_cookie(response: Response, errores: list):
     """
@@ -345,11 +314,11 @@ async def quiz_get(request: Request):
     session = get_session(request)
 
     if not all(k in session for k in ['puntaje', 'total', 'inicio', 'pregunta_actual', 'errores']) or session == {}:
-        nueva_pregunta = obtener_pregunta_cache()
+        nueva_pregunta = await obtener_pregunta_cache_async()
         intentos = 0
         while not es_pregunta_valida(nueva_pregunta) and intentos < 10:
-            time.sleep(2)
-            nueva_pregunta = obtener_pregunta_cache()
+            await asyncio.sleep(2)
+            nueva_pregunta = await obtener_pregunta_cache_async()
             intentos += 1
         if not es_pregunta_valida(nueva_pregunta):
             response = RedirectResponse(
@@ -368,8 +337,8 @@ async def quiz_get(request: Request):
     # Si la pregunta actual no es válida, reintenta obtener otra
     intentos = 0
     while not es_pregunta_valida(session['pregunta_actual']) and intentos < 10:
-        time.sleep(2)
-        session['pregunta_actual'] = obtener_pregunta_cache()
+        await asyncio.sleep(2)
+        session['pregunta_actual'] = await obtener_pregunta_cache_async()
         intentos += 1
     if not es_pregunta_valida(session['pregunta_actual']):
         response = RedirectResponse(
@@ -405,8 +374,8 @@ async def quiz_post(request: Request, respuesta: str = Form(...)):
     # Si la pregunta actual no es válida, reintenta obtener otra
     intentos = 0
     while not es_pregunta_valida(session['pregunta_actual']) and intentos < 10:
-        time.sleep(2)
-        session['pregunta_actual'] = obtener_pregunta_cache()
+        await asyncio.sleep(2)
+        session['pregunta_actual'] = await obtener_pregunta_cache_async()
         intentos += 1
     if not es_pregunta_valida(session['pregunta_actual']):
         response = RedirectResponse(
@@ -443,11 +412,11 @@ async def quiz_post(request: Request, respuesta: str = Form(...)):
         return response
 
     # Si no ha terminado, obtiene una nueva pregunta y actualiza la sesión
-    nueva_pregunta = obtener_pregunta_cache()
+    nueva_pregunta = await obtener_pregunta_cache_async()
     intentos = 0
     while not es_pregunta_valida(nueva_pregunta) and intentos < 10:
-        time.sleep(2)
-        nueva_pregunta = obtener_pregunta_cache()
+        await asyncio.sleep(2)
+        nueva_pregunta = await obtener_pregunta_cache_async()
         intentos += 1
     if not es_pregunta_valida(nueva_pregunta):
         response = RedirectResponse(
@@ -462,7 +431,7 @@ async def quiz_post(request: Request, respuesta: str = Form(...)):
     return response
 
 @app.get('/resultado')
-def resultado(request: Request, correctas: int = 0, tiempo: int = 0, quiz_errores: str = Cookie(default=None)):
+def resultado(request: Request, correctas: int = 0, tiempo: int = 0):
     """
     Ruta para mostrar el resultado final.
     Recupera los errores desde la cookie temporal y los muestra junto al puntaje y tiempo.
@@ -472,7 +441,6 @@ def resultado(request: Request, correctas: int = 0, tiempo: int = 0, quiz_errore
         'resultado.html',
         {'request': request, 'correctas': correctas, 'tiempo': tiempo, 'errores': errores}
     )
-    response.delete_cookie("quiz_errores")
     return response
 
 @app.get('/error')
