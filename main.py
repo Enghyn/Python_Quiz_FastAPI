@@ -1,7 +1,7 @@
 # =============================
 # CONFIGURACIÓN Y DEPENDENCIAS
 # =============================
-from fastapi import FastAPI, Request, Form, Response, Cookie
+from fastapi import FastAPI, Request, Form, Response
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from itsdangerous import URLSafeSerializer, BadSignature
@@ -30,7 +30,7 @@ Diseñar una pregunta de opción múltiple de análisis de código en Python, ba
 
 # Estructura de generación (paso a paso):
 1. **Generá un bloque de código Python autocontenido** que cumpla con los criterios detallados en la sección "Criterios del código". El código debe ser diferente a los generados anteriormente y evitar patrones repetitivos.
-2. **Limitá el código a un máximo de 18 líneas ejecutables** (sin contar líneas en blanco ni comentarios), para evitar preguntas demasiado extensas y reducir el tamaño de la cookie de errores.
+2. **Limitá el código a un máximo de 25 líneas ejecutables** (sin contar líneas en blanco ni comentarios), para evitar preguntas demasiado extensas y reducir el tamaño de la cookie de errores.
 3. **Simulá mentalmente su ejecución** (o ejecutalo internamente) y determiná con exactitud su salida o el valor final de una variable clave.
 4. **Redactá una pregunta clara**, basada en ese código, sin adornos ni ambigüedades. El enunciado debe estar contextualizado para análisis de código.
 5. **Generá 4 opciones plausibles**, una de ellas correcta. Las incorrectas deben ser verosímiles.
@@ -264,36 +264,6 @@ def clear_session(response: Response):
     Elimina la cookie de sesión.
     """
     response.delete_cookie(SESSION_COOKIE)
-    response.delete_cookie("quiz_errores")
-
-def set_errores_cookie(response: Response, errores: list):
-    """
-    Serializa y guarda la lista de errores en una cookie separada, solo para mostrar en resultados.
-    """
-    # Limita el tamaño serializando solo los campos esenciales
-    errores_livianos = []
-    for err in errores:
-        errores_livianos.append({
-            'pregunta': err.get('pregunta', ''),
-            'codigo': err.get('codigo', ''),
-            'respuesta_correcta': err.get('respuesta_correcta', ''),
-            'respuesta_usuario': err.get('respuesta_usuario', ''),
-            'explicacion': err.get('explicacion', '')
-        })
-    cookie_value = serializer.dumps(errores_livianos)
-    response.set_cookie("quiz_errores", cookie_value, max_age=60*60*10)
-
-def get_errores_cookie(request: Request):
-    """
-    Recupera la lista de errores desde la cookie separada.
-    """
-    quiz_errores = request.cookies.get("quiz_errores")
-    if not quiz_errores:
-        return []
-    try:
-        return serializer.loads(quiz_errores)
-    except BadSignature:
-        return []
 
 @app.get('/', name="inicio")
 def inicio(request: Request):
@@ -313,7 +283,7 @@ async def quiz_get(request: Request):
     """
     session = get_session(request)
 
-    if not all(k in session for k in ['puntaje', 'total', 'inicio', 'pregunta_actual', 'errores']) or session == {}:
+    if not all(k in session for k in ['puntaje', 'total', 'inicio', 'pregunta_actual']) or session == {}:
         nueva_pregunta = await obtener_pregunta_cache_async()
         intentos = 0
         while not es_pregunta_valida(nueva_pregunta) and intentos < 10:
@@ -368,9 +338,6 @@ async def quiz_post(request: Request, respuesta: str = Form(...)):
     if not all(k in session for k in ['puntaje', 'total', 'inicio', 'pregunta_actual']):
         return RedirectResponse(url='/', status_code=303)
 
-    # Recupera errores de la cookie (si existen)
-    errores = get_errores_cookie(request)
-
     # Si la pregunta actual no es válida, reintenta obtener otra
     intentos = 0
     while not es_pregunta_valida(session['pregunta_actual']) and intentos < 10:
@@ -391,14 +358,6 @@ async def quiz_post(request: Request, respuesta: str = Form(...)):
 
     if seleccion and seleccion.strip() == correcta.strip():
         session['puntaje'] += 1
-    else:
-        errores.append({
-            'pregunta': session['pregunta_actual']['pregunta'],
-            'codigo': session['pregunta_actual']['codigo'],
-            'respuesta_correcta': correcta,
-            'explicacion': explicacion,
-            'respuesta_usuario': seleccion
-        })
 
     if session['total'] >= 10:
         tiempo = int(time.time() - session['inicio'])
@@ -408,7 +367,6 @@ async def quiz_post(request: Request, respuesta: str = Form(...)):
             status_code=303
         )
         clear_session(response)
-        set_errores_cookie(response, errores)
         return response
 
     # Si no ha terminado, obtiene una nueva pregunta y actualiza la sesión
@@ -427,7 +385,6 @@ async def quiz_post(request: Request, respuesta: str = Form(...)):
     session['pregunta_actual'] = nueva_pregunta
     response = RedirectResponse(url='/quiz', status_code=303)
     set_session(response, session)
-    set_errores_cookie(response, errores)
     return response
 
 @app.get('/resultado')
@@ -436,10 +393,10 @@ def resultado(request: Request, correctas: int = 0, tiempo: int = 0):
     Ruta para mostrar el resultado final.
     Recupera los errores desde la cookie temporal y los muestra junto al puntaje y tiempo.
     """
-    errores = get_errores_cookie(request)
+    # Recupera errores del localStorage usando JavaScript en resultado.html
     response = templates.TemplateResponse(
         'resultado.html',
-        {'request': request, 'correctas': correctas, 'tiempo': tiempo, 'errores': errores}
+        {'request': request, 'correctas': correctas, 'tiempo': tiempo, 'errores': []}  # errores vacío, se cargan en el frontend
     )
     return response
 

@@ -183,7 +183,11 @@
             {{ pregunta["pregunta"] }}
         </div>
         <pre>{{ pregunta["codigo"] }}</pre>
-        <form method="post">
+        <form method="post"
+              data-correcta="{{ pregunta['respuesta_correcta']|e }}"
+              data-pregunta="{{ pregunta['pregunta']|e }}"
+              data-codigo="{{ pregunta['codigo']|e }}"
+              data-explicacion="{{ pregunta['explicacion']|e }}">
             {% for opcion in pregunta["respuestas"] %}
             <div class="opcion">
                 <input type="radio" name="respuesta" value="{{ opcion }}" id="opcion{{ loop.index }}" required>
@@ -193,5 +197,34 @@
             <button type="submit">Responder</button>
         </form>
     </div>
+    <script>
+    // Guardar errores en localStorage si la respuesta es incorrecta
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('form');
+        if (!form) return;
+        form.addEventListener('submit', function(e) {
+            // Obtener datos de la pregunta desde atributos data-* en el form
+            const correcta = form.getAttribute('data-correcta');
+            const preguntaTexto = form.getAttribute('data-pregunta');
+            const codigo = form.getAttribute('data-codigo');
+            const explicacion = form.getAttribute('data-explicacion');
+            const radios = document.querySelectorAll('input[name="respuesta"]');
+            let seleccion = null;
+            radios.forEach(r => { if (r.checked) seleccion = r.value; });
+            if (seleccion && seleccion !== correcta) {
+                let errores = [];
+                try { errores = JSON.parse(localStorage.getItem('quiz_errores') || '[]'); } catch {}
+                errores.push({
+                    pregunta: preguntaTexto,
+                    codigo: codigo,
+                    respuesta_correcta: correcta,
+                    respuesta_usuario: seleccion,
+                    explicacion: explicacion
+                });
+                localStorage.setItem('quiz_errores', JSON.stringify(errores));
+            }
+        });
+    });
+    </script>
 </body>
 </html>
