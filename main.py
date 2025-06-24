@@ -48,7 +48,7 @@ Generar un objeto JSON que contenga:
 4. **Genera 4 opciones plausibles**, una correcta y tres incorrectas pero verosímiles. La respuesta correcta debe coincidir exactamente con la salida real del código.
 5. **Valida rigurosamente**:
    - Comprueba tres veces que la respuesta correcta es la única válida y coincide con la salida real.
-   - Si detectas cualquier error, inconsistencia o ambigüedad, reinicia el proceso desde el paso 1.
+   - Si detectas cualquier error, inconsistencia o ambigüedad, reintenta hasta 3 veces antes de proceder con la mejor versión disponible.
    - No generes preguntas donde la explicación contradiga la opción correcta o corrija el resultado después de mostrar las opciones.
    - No generes preguntas triviales, redundantes ni con resultados evidentes.
 6. **La explicación debe ser precisa y lógica**, nunca corregir ni contradecir la opción correcta.
