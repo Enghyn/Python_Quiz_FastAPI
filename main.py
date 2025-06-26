@@ -140,7 +140,7 @@ def generar_pregunta():
     Limpia el texto y lo convierte a un diccionario Python.
     """
     response = client.models.generate_content(
-        model="gemini-2.0-flash-lite", 
+        model="gemini-2.5-flash-lite-preview-06-17", 
         contents=PROMPT
     )
     try:
