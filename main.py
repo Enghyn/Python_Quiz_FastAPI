@@ -51,7 +51,7 @@ Generar un objeto JSON que contenga:
    - Si detectas cualquier error, inconsistencia o ambigüedad, reintenta hasta 3 veces antes de proceder con la mejor versión disponible.
    - No generes preguntas donde la explicación contradiga la opción correcta o corrija el resultado después de mostrar las opciones.
    - No generes preguntas triviales, redundantes ni con resultados evidentes.
-6. **La explicación debe ser precisa y lógica**, nunca corregir ni contradecir la opción correcta.
+6. **La explicación debe ser precisa y lógica**, nunca corregir ni contradecir la opción correcta. **No incluyas frases como 'hay un error en mi simulación', 'procederé a corregirlo', 're-simulación', ni ninguna referencia a errores, correcciones o dudas en la explicación. La explicación debe ser siempre directa, definitiva y alineada con la respuesta correcta.**
 7. **Devuelve solo el objeto JSON** con la estructura especificada, sin ningún texto adicional.
 
 ## Criterios del código
