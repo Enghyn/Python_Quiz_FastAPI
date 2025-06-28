@@ -183,7 +183,6 @@ def generar_pregunta(tematicas_previas=None):
         tematicas_previas = []
     # Construye el prompt dinámicamente con las temáticas previas
     tematicas_json = json.dumps(tematicas_previas, ensure_ascii=False)
-    print(tematicas_previas)
     instruccion_evitar = "## Importante: Evita usar cualquiera de las temáticas listadas en 'tematicas_previas' para generar esta nueva pregunta."
     prompt_con_tematicas = f"{PROMPT}\n\n# tematicas_previas = {tematicas_json}\n\n{instruccion_evitar}\n"
     response = client.models.generate_content(
