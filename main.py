@@ -27,6 +27,31 @@ PROMPT = """
 ## Rol y contexto
 Eres un generador experto de preguntas de opción múltiple para análisis de código Python, orientado a estudiantes universitarios de nivel intermedio. Tu objetivo es crear preguntas desafiantes, variadas y libres de errores, siguiendo los más altos estándares de calidad y validación, y evitando cualquier tipo de repetitividad o ambigüedad. Actúa siempre como un generador profesional, crítico y riguroso, y nunca como un asistente conversacional.
 
+## Lista de temáticas posibles
+Debes elegir una o dos temáticas principales de la siguiente lista para cada ejercicio, combinándolas si es necesario. Cada pregunta debe ser única y diferente de las anteriores y siguientes:
+- Cálculo de edad
+- Aritmética con enteros
+- Aritmética con flotantes
+- Recorrido de arreglos/listas
+- Trabajar con cadenas (strings)
+- Operaciones de slicing
+- Concatenación de cadenas
+- Conversión de tipos (int, float, str)
+- Intercambio de valores entre variables
+- Operaciones matemáticas avanzadas (potencias, raíces, módulo)
+- Uso de input/output
+- Condicionales (if, elif, else)
+- Bucles (for, while)
+- Funciones definidas por el usuario
+- Recursividad
+- Manipulación de tuplas
+- Manipulación de diccionarios
+- Manipulación de conjuntos
+- Otros (especificar)
+
+## Temáticas previas
+- El valor de 'tematicas_previas' es una lista de las temáticas usadas en los ejercicios anteriores. Si está vacía, es la primera vez que generas una pregunta. Si tiene valores, SI O SI evita usar cualquiera de las temáticas listadas en 'tematicas_previas' para generar esta nueva pregunta.
+
 ## Objetivo
 Generar un objeto JSON que contenga:
 - Un bloque de código Python autocontenido, válido y bien formateado.
@@ -34,25 +59,39 @@ Generar un objeto JSON que contenga:
 - Cuatro opciones plausibles, solo una correcta.
 - La respuesta correcta, que debe coincidir exactamente con una de las opciones.
 - Una explicación precisa, centrada en la lógica y ejecución del código.
+- Un campo adicional 'tematicas_usadas' (lista de las temáticas elegidas para este ejercicio).
 
 ## Instrucciones estrictas de generación y validación
-1. **Genera un código Python autocontenido** que cumpla con los criterios de la sección "Criterios del código". El código debe ser único, desafiante y no repetir patrones, nombres ni lógicas de ejercicios anteriores.
-2. **Evita cualquier tipo de repetitividad**:
+1. **Elige una o dos temáticas principales de la lista anterior para generar el ejercicio, seleccionando de forma aleatoria y equitativa, y evitando repeticiones recientes (ver tematicas_previas).**
+2. **Genera el código Python autocontenido** que cumpla con los criterios de la sección "Criterios del código" y combine las temáticas elegidas.
+3. **Evita cualquier tipo de repetitividad**:
    - Prohibido ejercicios de recursividad con resultado 120 (factorial de 5) o input 5.
    - Si usas input(), el valor debe ser aleatorio entre 1 y 20, y debe estar explícito en el enunciado.
    - No repitas valores de entrada ni de salida en ejercicios consecutivos. Los valores más repetidos (1, 6, 12, 15, 2, 3, 5, 7) deben evitarse como respuestas o inputs frecuentes.
    - Si usas recursividad, varía el tipo de problema (no solo factorial, suma, fibonacci, etc.) y los valores de entrada.
    - Si usas estructuras de datos, varía su contenido y la lógica de manipulación.
    - No repitas estructuras, nombres de variables ni patrones lógicos.
-3. **Simula mentalmente la ejecución del código** y verifica paso a paso la lógica, los cálculos y los signos comparadores. No cometas errores aritméticos ni de comparación (ejemplo: 2 < 5 es True, 4.0 > 4 es False).
-4. **Genera 4 opciones plausibles**, una correcta y tres incorrectas pero verosímiles. La respuesta correcta debe coincidir exactamente con la salida real del código.
-5. **Valida rigurosamente**:
+4. **Simula mentalmente la ejecución del código** y verifica paso a paso la lógica, los cálculos y los signos comparadores. No cometas errores aritméticos ni de comparación (ejemplo: 2 < 5 es True, 4.0 > 4 es False).
+5. **Genera 4 opciones plausibles**, una correcta y tres incorrectas pero verosímiles. La respuesta correcta debe coincidir exactamente con la salida real del código.
+6. **Valida rigurosamente**:
    - Comprueba tres veces que la respuesta correcta es la única válida y coincide con la salida real.
    - Si detectas cualquier error, inconsistencia o ambigüedad, reintenta hasta 3 veces antes de proceder con la mejor versión disponible.
    - No generes preguntas donde la explicación contradiga la opción correcta o corrija el resultado después de mostrar las opciones.
    - No generes preguntas triviales, redundantes ni con resultados evidentes.
-6. **La explicación debe ser precisa y lógica**, nunca corregir ni contradecir la opción correcta. **No incluyas frases como 'hay un error en mi simulación', 'procederé a corregirlo', 're-simulación', ni ninguna referencia a errores, correcciones o dudas en la explicación. La explicación debe ser siempre directa, definitiva y alineada con la respuesta correcta.**
-7. **Devuelve solo el objeto JSON** con la estructura especificada, sin ningún texto adicional.
+7. **La explicación debe ser precisa y lógica**, nunca corregir ni contradecir la opción correcta. **No incluyas frases como 'hay un error en mi simulación', 'procederé a corregirlo', 're-simulación', ni ninguna referencia a errores, correcciones o dudas en la explicación. La explicación debe ser siempre directa, definitiva y alineada con la respuesta correcta.**
+8. **Devuelve solo el objeto JSON** con la estructura especificada, sin ningún texto adicional.
+
+## Checklist obligatorio de validación y simulación exhaustiva
+Antes de decidir la respuesta correcta y la explicación, sigue este checklist:
+- [ ] Simula mentalmente la ejecución del código al menos 3 veces, línea por línea, comprobando el valor de cada variable en cada iteración.
+- [ ] Verifica que la salida producida por el código coincide exactamente con la respuesta correcta propuesta.
+- [ ] Asegúrate de que ninguna de las opciones incorrectas pueda ser confundida con la correcta tras la simulación.
+- [ ] Revisa que la explicación sea coherente, definitiva y no contenga frases de corrección, duda o simulación intermedia.
+- [ ] Confirma que el campo "Codigo" no contiene delimitadores de bloque de código ni comentarios extra.
+- [ ] Valida que los nombres de variables, valores y lógica no se repiten respecto a ejercicios anteriores.
+- [ ] Comprueba que la pregunta no es trivial, redundante ni con resultados evidentes.
+- [ ] Si detectas cualquier error, inconsistencia o ambigüedad, reinicia el proceso de generación hasta 3 veces antes de aceptar la mejor versión disponible.
+- [ ] Solo genera la explicación cuando estés completamente seguro del resultado, sin dudas ni correcciones.
 
 ## Criterios del código
 - Sintaxis Python válida, compatible con versiones recientes.
@@ -81,7 +120,8 @@ Devuelve únicamente un objeto JSON con esta estructura exacta:
   "Pregunta": "Texto claro, sin adornos. Enunciado técnico enfocado en la ejecución del código.",
   "Respuesta correcta": "Debe coincidir exactamente con una de las opciones anteriores.",
   "Respuestas": ["Opción A", "Opción B", "Opción C", "Opción D"],
-  "Explicacion": "Explicación centrada en la ejecución paso a paso y en la lógica del código."
+  "Explicacion": "Explicación centrada en la ejecución paso a paso y en la lógica del código.",
+  "tematicas_usadas": ["tematica_principal", "tematica_secundaria"]
 }
 
 ## Restricciones finales
@@ -134,14 +174,20 @@ def es_pregunta_valida(pregunta):
 # =============================
 # GENERACIÓN Y OBTENCIÓN DE PREGUNTAS
 # =============================
-def generar_pregunta():
+def generar_pregunta(tematicas_previas=None):
     """
-    Llama a Gemini para generar una pregunta nueva.
+    Llama a Gemini para generar una pregunta nueva, pasando las temáticas previas.
     Limpia el texto y lo convierte a un diccionario Python.
     """
+    if tematicas_previas is None:
+        tematicas_previas = []
+    # Construye el prompt dinámicamente con las temáticas previas
+    tematicas_json = json.dumps(tematicas_previas, ensure_ascii=False)
+    instruccion_evitar = "## Importante: Evita usar cualquiera de las temáticas listadas en 'tematicas_previas' para generar esta nueva pregunta."
+    prompt_con_tematicas = f"{PROMPT}\n\n# tematicas_previas = {tematicas_json}\n\n{instruccion_evitar}\n"
     response = client.models.generate_content(
         model="gemini-2.5-flash-lite-preview-06-17", 
-        contents=PROMPT
+        contents=prompt_con_tematicas
     )
     try:
         text = response.text.strip()
@@ -164,7 +210,8 @@ def generar_pregunta():
             "codigo": pregunta_json.get("Codigo"),
             "respuestas": respuestas,
             "respuesta_correcta": pregunta_json.get("Respuesta correcta"),
-            "explicacion": pregunta_json.get("Explicacion", "")
+            "explicacion": pregunta_json.get("Explicacion", ""),
+            "tematicas_usadas": pregunta_json.get("tematicas_usadas", [])
         }
         if not es_pregunta_valida(pregunta):
             return {"error": "Pregunta inválida o incompleta", "detalle": "Faltan campos o formato incorrecto", "texto": text}
@@ -200,7 +247,7 @@ def precargar_preguntas():
 # Inicia el hilo de precarga al arrancar la app
 threading.Thread(target=precargar_preguntas, daemon=True).start()
 
-async def obtener_pregunta_cache_async():
+async def obtener_pregunta_cache_async(tematicas_previas=None):
     """
     Obtiene una pregunta del cache de forma no bloqueante para el event loop.
     Si el cache está vacío, genera una pregunta en caliente.
@@ -209,10 +256,10 @@ async def obtener_pregunta_cache_async():
     try:
         pregunta = await loop.run_in_executor(None, lambda: pregunta_cache.get(timeout=10))
         if not es_pregunta_valida(pregunta):
-            return generar_pregunta()
+            return generar_pregunta(tematicas_previas)
         return pregunta
     except Exception:
-        pregunta = generar_pregunta()
+        pregunta = generar_pregunta(tematicas_previas)
         return pregunta
 
 # =============================
