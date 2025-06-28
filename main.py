@@ -183,6 +183,7 @@ def generar_pregunta(tematicas_previas=None):
         tematicas_previas = []
     # Construye el prompt dinámicamente con las temáticas previas
     tematicas_json = json.dumps(tematicas_previas, ensure_ascii=False)
+    print(tematicas_previas)
     instruccion_evitar = "## Importante: Evita usar cualquiera de las temáticas listadas en 'tematicas_previas' para generar esta nueva pregunta."
     prompt_con_tematicas = f"{PROMPT}\n\n# tematicas_previas = {tematicas_json}\n\n{instruccion_evitar}\n"
     response = client.models.generate_content(
@@ -220,20 +221,33 @@ def generar_pregunta(tematicas_previas=None):
         return {"error": "No se pudo extraer el JSON", "detalle": str(e), "texto": response.text}
 
 # =============================
+# VARIABLE GLOBAL PARA TEMÁTICAS PREVIAS DEL HILO DE PRECARGA
+# =============================
+tematicas_previas_global = []
+tematicas_lock = threading.Lock()
+
+# =============================
 # HILO DE PRECARGA DE PREGUNTAS
 # =============================
 def precargar_preguntas():
     """
     Hilo en segundo plano que mantiene el cache de preguntas lleno.
     Solo consulta la API si el cache baja del umbral.
+    Usa una variable global protegida por lock para tematicas_previas.
     """
+    global tematicas_previas_global
     while True:
         if pregunta_cache.qsize() < CACHE_MIN:
             try:
-                pregunta = generar_pregunta()
+                with tematicas_lock:
+                    tematicas_previas = list(tematicas_previas_global)
+                pregunta = generar_pregunta(tematicas_previas)
                 # Solo la guarda si es válida
                 if es_pregunta_valida(pregunta):
                     pregunta_cache.put(pregunta)
+                    # Actualiza la variable global de tematicas_previas
+                    with tematicas_lock:
+                        tematicas_previas_global = pregunta.get("tematicas_usadas", [])
                 time.sleep(5)  # Espera 5 segundos antes de volver a intentar
             except Exception as e:
                 # Si es un error de cuota, espera más tiempo
